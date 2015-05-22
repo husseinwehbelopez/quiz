@@ -1,5 +1,4 @@
 var path = require('path');
-var pg=require('pg');
 // Postgres DATABASE_URL = postgres://user:passwd@host:port/database
 // SQLite DATABASE_URL = sqlite://:@:/
 var url = process.env.DATABASE_URL.match(/(.*)\:\/\/(.*?)\:(.*)@(.*)\:(.*)\/(.*)/);
@@ -21,7 +20,8 @@ port: port,
 host: host,
 storage: storage, // solo SQLite (.env)
 omitNull: true // solo Postgres
-});
+}
+);
 // Importar definicion de la tabla Quiz
 var quiz_path = path.join(__dirname,'quiz');
 var Quiz = sequelize.import(quiz_path);
@@ -29,15 +29,16 @@ exports.Quiz = Quiz; // exportar tabla Quiz
 // sequelize.sync() inicializa tabla de preguntas en DB
 sequelize.sync().then(function() {
 // then(..) ejecuta el manejador una vez creada la tabla
-   Quiz.count().then(function (count){
-      if(count === 0) { // la tabla se inicializa solo si está vacía
-       Quiz.create({ pregunta: 'Capital de Italia',
-                     respuesta: 'Roma'
-                   })
-       Quiz.create({ pregunta: 'Capital de Portugal',
-                     respuesta: 'Lisboa'
-                  })
-       .then(function(){console.log('Base de datos inicializada')});
-        };
-     });
-   });
+Quiz.count().then(function(count){
+if(count === 0){
+Quiz.create({ pregunta: 'Capital de Italia',
+respuesta: 'Roma'
+});
+Quiz.create({ pregunta: 'Capital de Portugal',
+respuesta: 'Lisboa'
+})
+.then(function(){console.log('Base de datos inicializada')});
+};
+});
+
+});
