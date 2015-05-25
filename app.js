@@ -63,5 +63,5 @@ error: {},
 errors: []
 });
 });
-module.exports = app
+module.exports = app;
 
