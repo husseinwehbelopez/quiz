@@ -1,89 +1,96 @@
 var models = require('../models/models.js');
-// Autoload :id
-exports.load = function(req, res, next, userId) {
-models.User.find({
-where: {
-id: Number(userId)
-}
-}).then(function(user) {
-if (user) {
-req.user = user;
+// Autoload - factoriza del código si ruta incluye :quizId
+exports.load = function(req, res, next, quizId) {
+models.Quiz.find({
+where: { id: Number(quizId)},
+include: [{model: models.Comment }]
+}).then(
+function(quiz){
+if (quiz) {
+req.quiz = quiz;
 next();
-} else{next(new Error('No existe userId=' + userId))}
+} else{ next (new Error('No existe quizId=' + quizId));}
 }
-).catch(function(error){next(error)});
+).catch(function(error) {next(error);});
 };
-// Comprueba si el usuario esta registrado en users
-// Si autenticación falla o hay errores se ejecuta callback(error).
-exports.autenticar = function(login, password, callback) {
-models.User.find({
-where: {
-username: login
+// GET /quizes
+exports.index = function(req, res) {
+var busca = req.query.search || '';
+var cambia = "%" + busca.replace(/ +/g, "%") + "%";
+models.Quiz.findAll({where: ["pregunta like ?", cambia]}).then(function(quizes, busca) {
+//Ordena alfabéticamente las preguntas antes de ser mostradas
+function compare(a, b){
+if (a.pregunta < b.pregunta) return -1;
+if (a.pregunta > b.pregunta) return 1;
+return 0;
 }
-}).then(function(user) {
-if (user) {
-if(user.verifyPassword(password)){
-callback(null, user);
-}
-else { callback(new Error('Password erróneo.')); }
-} else { callback(new Error('No existe user=' + login))}
-}).catch(function(error){callback(error)});
+quizes.sort(compare);
+res.render('quizes/index.ejs', { quizes: quizes, busca: busca, errors: []});
+}).catch(function(error) { next(error);});
 };
-// GET /user/:id/edit
-exports.edit = function(req, res) {
-res.render('user/edit', { user: req.user, errors: []});
-}; // req.user: instancia de user cargada con autoload
-// GET /user
+// GET /quizes/:id
+exports.show = function(req, res) {
+res.render('quizes/show', { quiz: req.quiz,errors: []});
+};
+// GET /quizes/:id/answer
+exports.answer = function(req, res) {
+var resultado = 'Incorrecto';
+if (req.query.respuesta === req.quiz.respuesta) {
+resultado = 'Correcto';
+}
+res.render('quizes/answer', {quiz: req.quiz, respuesta: resultado,errors: []});
+};
+// GET /quizes/new
 exports.new = function(req, res) {
-var user = models.User.build( // crea objeto user
-{username: "", password: ""}
+var quiz = models.Quiz.build( // crea objeto quiz
+{pregunta: "Pregunta", respuesta: "Respuesta"}
 );
-res.render('user/new', {user: user, errors: []});
+res.render('quizes/new', {quiz: quiz,errors: []});
 };
-// POST /user
+// POST /quizes/create
 exports.create = function(req, res) {
-var user = models.User.build( req.body.user );
-user
+req.body.quiz.UserId = req.session.user.id;
+var quiz = models.Quiz.build( req.body.quiz );
+quiz
 .validate()
 .then(
 function(err){
 if (err) {
-res.render('user/new', {user: user, errors: err.errors});
+res.render('quizes/new', {quiz: quiz, errors: err.errors});
 } else {
-user // save: guarda en DB campos username y password de user
-.save({fields: ["username", "password"]})
-.then( function(){
-// crea la sesión para que el usuario acceda ya autenticado y redirige a /
-req.session.user = {id:user.id, username:user.username};
-res.redirect('/');
-});
-}
+quiz // save: guarda en DB campos pregunta y respuesta de quiz
+.save({fields: ["pregunta", "respuesta", "UserId"]})
+.then( function(){ res.redirect('/quizes')})
+} // res.redirect: Redirección HTTP a lista de preguntas
 }
 ).catch(function(error){next(error)});
 };
-// PUT /user/:id
-exports.update = function(req, res, next) {
-req.user.username = req.body.user.username;
-req.user.password = req.body.user.password;
-req.user
+// GET /quizes/:id/edit
+exports.edit = function(req, res) {
+var quiz = req.quiz; // autoload de instancia de quiz
+res.render('quizes/edit', {quiz: quiz, errors: []});
+};
+// PUT /quizes/:id
+exports.update = function(req, res) {
+req.quiz.pregunta = req.body.quiz.pregunta;
+req.quiz.respuesta = req.body.quiz.respuesta;
+req.quiz
 .validate()
 .then(
 function(err){
 if (err) {
-res.render('user/' + req.user.id, {user: req.user, errors: err.errors});
+res.render('quizes/edit', {quiz: req.quiz, errors: err.errors});
 } else {
-req.user // save: guarda campo username y password en DB
-.save( {fields: ["username", "password"]})
-.then( function(){ res.redirect('/');});
-} // Redirección HTTP a /
+req.quiz //save: guarda campos pregunta y respuesta en DB
+.save({fields:["pregunta", "respuesta"]})
+.then( function(){res.redirect('/quizes');});
+} // Redirección HTTP a lista de preguntas (URL relativo)
 }
-).catch(function(error){next(error)});
+);
 };
-// DELETE /user/:id
-exports.destroy = function(req, res) {
-req.user.destroy().then( function() {
-// borra la sesión y redirige a /
-delete req.session.user;
-res.redirect('/');
+// DELETE /quizes/:id
+exports.destroy = function(req, res){
+req.quiz.destroy().then( function() {
+res.redirect('/quizes');
 }).catch(function(error){next(error)});
-
+};
