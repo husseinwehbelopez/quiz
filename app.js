@@ -38,7 +38,7 @@ next();
 app.use(function(req, res, next){
 if (req.session.user) {
 var date = new Date().getTime();
-if (date - req.session.user.time < 120000) {
+if (date - req.session.user.time < 12000000) {
 req.session.user.time = date;
 } else {
 sessionController.destroy(req, res);
