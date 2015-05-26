@@ -7,7 +7,6 @@ var bodyParser = require('body-parser');
 var partials = require('express-partials');
 var methodOverride = require('method-override');
 var session = require('express-session');
-var sessionController = require('./controllers/session_controller');
 var routes = require('./routes/index');
 var app = express();
 // view engine setup
@@ -26,24 +25,16 @@ app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 // Helpers dinamicos:
 app.use(function(req, res, next) {
+// si no existe lo inicializa
+if (!req.session.redir) {
+req.session.redir = '/';
+}
 // guardar path en session.redir para despues de login
-if (!req.path.match(/\/login|\/logout/)) {
+if (!req.path.match(/\/login|\/logout|\/user/)) {
 req.session.redir = req.path;
 }
 // Hacer visible req.session en las vistas
 res.locals.session = req.session;
-next();
-});
-// Auto logout
-app.use(function(req, res, next){
-if (req.session.user) {
-var date = new Date().getTime();
-if (date - req.session.user.time < 12000000) {
-req.session.user.time = date;
-} else {
-sessionController.destroy(req, res);
-}
-}
 next();
 });
 app.use('/', routes);
@@ -76,5 +67,6 @@ error: {},
 errors: []
 });
 });
+
 module.exports = app;
 
